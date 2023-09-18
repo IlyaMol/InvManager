@@ -28,15 +28,6 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.components = new System.ComponentModel.Container();
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(ClientUpdateService));
-            this.notifyIcon1 = new System.Windows.Forms.NotifyIcon(this.components);
-            // 
-            // notifyIcon1
-            // 
-            this.notifyIcon1.Icon = ((System.Drawing.Icon)(resources.GetObject("notifyIcon1.Icon")));
-            this.notifyIcon1.Text = "Client updater";
-            this.notifyIcon1.Visible = true;
             // 
             // ClientUpdateService
             // 
@@ -45,7 +36,5 @@
         }
 
         #endregion
-
-        private System.Windows.Forms.NotifyIcon notifyIcon1;
     }
 }

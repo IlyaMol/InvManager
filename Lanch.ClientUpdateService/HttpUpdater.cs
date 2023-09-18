@@ -11,10 +11,10 @@ namespace Lanch.ClientUpdateService
 {
     public class HttpUpdater
     {
-        public delegate void UpdateFounded(Version newVersion);
+        public delegate void UpdateFounded(long newVersion);
         public event UpdateFounded OnUpdateFounded; 
 
-        private Version lastVersion = new Version();
+        private long lastVersion = 0;
 
         private string _url;
         private HttpClient _httpClient;
@@ -47,24 +47,30 @@ namespace Lanch.ClientUpdateService
             timer = new Timer(
                 state: null,
                 dueTime: 10000,
-                period: 15000,
+                period: 10000,
                 callback: tm);
         }
 
         private void OnTimerTick(object state)
         {
-            var result = _httpClient.GetAsync("api/ClientUpdate").Result;
+            HttpResponseMessage response = null;
+            
+            try
+            {
+                response = _httpClient.GetAsync("api/ClientUpdate").Result;
+            }
+            catch (Exception) { }
 
-            if(result != null && result.IsSuccessStatusCode) {
-                string jsonString = result.Content.ReadAsStringAsync().Result;
+            if(response != null && response.IsSuccessStatusCode) {
+                string jsonString = response.Content.ReadAsStringAsync().Result;
                 List<ClientUpdateModel> models = Json.Deserialize<List<ClientUpdateModel>>(jsonString);
 
                 if (models.Count == 0) return;
 
-                if (models.Max(m => m.Version) > lastVersion)
+                if (models.Max(m => m.ChangeNumber) > lastVersion)
                 {
-                    OnUpdateFounded?.Invoke(models.Max(m => m.Version));
-                    lastVersion = models.Max(m => m.Version);
+                    OnUpdateFounded?.Invoke(models.Max(m => m.ChangeNumber));
+                    lastVersion = models.Max(m => m.ChangeNumber);
                 }
             }
         }

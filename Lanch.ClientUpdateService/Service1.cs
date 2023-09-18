@@ -1,10 +1,16 @@
-﻿using System.ServiceProcess;
+﻿using System.Diagnostics;
+using System.IO;
+using System.IO.Pipes;
+using System.ServiceProcess;
 
 namespace Lanch.ClientUpdateService
 {
     public partial class ClientUpdateService : ServiceBase
     {
         private HttpUpdater updater;
+        private NamedPipeClientStream pipeClient;
+
+        private const string parentPipeName = "ClientSuperHub";
 
         public ClientUpdateService()
         {
@@ -22,16 +28,57 @@ namespace Lanch.ClientUpdateService
             updater.Start();
         }
 
-        private void Updater_OnUpdateFounded(System.Version newVersion)
+        private async void Updater_OnUpdateFounded(long newVersion)
         {
-            notifyIcon1.ShowBalloonTip(1000, "Update founded", $"New version is: {newVersion}", System.Windows.Forms.ToolTipIcon.Info);
+            if (pipeClient == null)
+            {
+                pipeClient = new NamedPipeClientStream(".", parentPipeName, PipeDirection.Out, PipeOptions.Asynchronous);
+            }
+
+            if (!pipeClient.IsConnected)
+            {
+                try
+                {
+                    pipeClient = new NamedPipeClientStream(".", parentPipeName, PipeDirection.Out, PipeOptions.Asynchronous);
+                    await pipeClient.ConnectAsync(100);
+                } 
+                catch(System.TimeoutException)
+                {
+
+                }
+            }
+
+            if(pipeClient.IsConnected && pipeClient.CanWrite)
+            {
+                using (var writer = new StreamWriter(pipeClient))
+                {
+                    await writer.WriteLineAsync($"New client version available: {newVersion}");
+
+                    pipeClient.WaitForPipeDrain();
+
+                    await writer.FlushAsync();
+                }
+                pipeClient.Close();
+            }
+
+            // Скачивание нового клиента
+            // Если скачивание удачно и хеш md5 совпадает
+            // Закрытие клиентского приложения
+            Process[] processes = Process.GetProcessesByName("GraphicsClientSharp");
+            foreach (Process process in processes)
+            {
+                process.Kill();
+            }
+            // 
         }
 
         protected override void OnStop()
         {
+            if (pipeClient != null && pipeClient.IsConnected)
+                pipeClient.Close();
+
             updater.OnUpdateFounded -= Updater_OnUpdateFounded;
             updater.Stop();
         }
-
     }
 }
